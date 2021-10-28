@@ -686,7 +686,8 @@ class Generator(nn.Module):
         return image
 
     def singan(self, latent, mode):
-        noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
+        noise = [None] * self.num_layers
+#         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
         
         out = self.input(latent[0])        
         out, _ = self.conv1(out, latent[0], noise=noise[0])
@@ -791,38 +792,32 @@ class Generator(nn.Module):
         image = skip.clamp(-1,1)
         return image
     
-    def blend(self, latent1, latent2, interpolate, mode):
+    def blend(self, latent1, latent2, mode):
         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
 
         assert mode in ('vertical', 'horizontal')
         if mode == 'vertical':
             view_size = (1,1,-1,1)
         else:
-            view_size = (1,1,-1,1)
+            view_size = (1,1,1,-1)
             
         out = self.input(latent1[0])
         
         out1, _ = self.conv1(out, latent1[0], noise=noise[0])
         out2, _ = self.conv1(out, latent2[0], noise=noise[0])
         alpha = torch.zeros([out1.size(2)])
-        if interpolate:
-            pad = out1.size(2)//4
-            alpha[-pad:] = 1
-            alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-        else:
-            alpha[out1.size(2)//2:]=1
+        pad = out1.size(2)//4
+        alpha[-pad:] = 1
+        alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
         alpha = alpha.view(*view_size).expand_as(out1).cuda()
         out = (1-alpha)*out1 + alpha*out2
 
         skip1 = self.to_rgb1(out, latent1[1])
         skip2 = self.to_rgb1(out, latent2[1])
         alpha = torch.zeros([skip1.size(2)])
-        if interpolate:
-            pad = skip1.size(2)//4
-            alpha[-pad:] = 1
-            alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-        else:
-            alpha[skip1.size(2)//2:]=1
+        pad = skip1.size(2)//4
+        alpha[-pad:] = 1
+        alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
         alpha = alpha.view(*view_size).expand_as(skip1).cuda()
         skip = (1-alpha)*skip1 + alpha*skip2
 
@@ -835,36 +830,27 @@ class Generator(nn.Module):
             out1, _ = conv1(out, latent1[i], noise=noise1)
             out2, _ = conv1(out, latent2[i], noise=noise1)
             alpha = torch.zeros([out1.size(2)])
-            if interpolate:
-                pad = out1.size(2)//4
-                alpha[-pad:] = 1
-                alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-            else:
-                alpha[out1.size(2)//2:]=1
+            pad = out1.size(2)//4
+            alpha[-pad:] = 1
+            alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
             alpha = alpha.view(*view_size).expand_as(out1).cuda()
             out = (1-alpha)*out1 + alpha*out2
 
             out1, _ = conv2(out, latent1[i+1], noise=noise2)
             out2, _ = conv2(out, latent2[i+1], noise=noise2)
             alpha = torch.zeros([out1.size(2)])
-            if interpolate:
-                pad = out1.size(2)//4
-                alpha[-pad:] = 1
-                alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-            else:
-                alpha[out1.size(2)//2:]=1
+            pad = out1.size(2)//4
+            alpha[-pad:] = 1
+            alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
             alpha = alpha.view(*view_size).expand_as(out1).cuda()
             out = (1-alpha)*out1 + alpha*out2
 
             skip1 = to_rgb(out, latent1[i+2], skip)
             skip2 = to_rgb(out, latent2[i+2], skip)
             alpha = torch.zeros([skip1.size(2)])
-            if interpolate:
-                pad = skip1.size(2)//4
-                alpha[-pad:] = 1
-                alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-            else:
-                alpha[skip1.size(2)//2:]=1
+            pad = skip1.size(2)//4
+            alpha[-pad:] = 1
+            alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
             alpha = alpha.view(*view_size).expand_as(skip1).cuda()
             skip = (1-alpha)*skip1 + alpha*skip2
 

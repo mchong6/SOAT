@@ -6,7 +6,6 @@ import cv2
 import dlib
 from PIL import Image
 import numpy as np
-import pandas as pd
 import math
 import scipy
 import scipy.ndimage
@@ -74,53 +73,6 @@ def load_source(files, generator, device='cuda'):
         sources = style2list(sources)
         
     return sources
-
-'''
-Given M, we zero out the first 2048 dimensions for non pose or hair features.
-The reason is that the first 2048 mostly contain hair and pose information and rarely
-anything related to other classes.
-
-'''
-def remove_2048(M, labels2idx):
-    M_hair = M[:,labels2idx['hair']].clone()
-    # zero out first 2048 channels (4 style layers) for non hair and pose features
-    M[...,:2048] = 0
-    M[:,labels2idx['hair']] = M_hair
-    return M
-
-# Compute pose M and append it as the last index of M
-def add_pose(M, labels2idx):
-    M = remove_2048(M, labels2idx)
-    # Add pose to the very last index of M
-    pose = 1-M[:,labels2idx['hair']]
-    M = torch.cat([M, pose.view(-1,1,9088)], 1)
-    #zero out rest of the channels after 2048 as pose should not affect other features
-    M[:,-1, 2048:] = 0
-    return M
-
-
-# add direction specified by q from source to reference, scaled by a
-def add_direction(s, r, q, a):
-    if isinstance(s, list):
-        s = list2style(s)
-    if isinstance(r, list):
-        r = list2style(r)
-    if s.ndim == 1:
-        s = s.unsqueeze(0)
-    if r.ndim == 1:
-        r = r.unsqueeze(0)
-    if q.ndim == 1:
-        q = q.unsqueeze(0)
-    if len(s) != len(r):
-        s = s.expand(r.size(0), -1)
-    q = q.float()
-        
-    old_norm = (q*s).norm(2,dim=1, keepdim=True)+1e-8
-    new_dir = q*r
-    new_dir = new_dir/(new_dir.norm(2,dim=1, keepdim=True)+1e-8) * old_norm
-    return s -a*q*s + a*new_dir
-
-
 # convert a style vector [B, 9088] into a suitable format (list) for our generator's input
 def style2list(s):
     output = []
@@ -197,7 +149,7 @@ def part_grid(target_image, refernce_images, part_images):
     return fig
 
 
-def display_image(image, size=256, mode='nearest', unnorm=False, title=''):
+def display_image(image, size=None, mode='nearest', unnorm=False, title=''):
     # image is [3,h,w] or [1,3,h,w] tensor [0,1]
     if image.is_cuda:
         image = image.cpu()
