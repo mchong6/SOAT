@@ -1,7 +1,7 @@
 # StyleGAN of All Trades: Image Manipulation withOnly Pretrained StyleGAN
 ![](teaser.jpg)
 
-This is the PyTorch implementation of [StyleGAN of All Trades: Image Manipulation withOnly Pretrained StyleGAN](). [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mchong6/SOAT/blob/main/infinity.ipynb)
+This is the PyTorch implementation of [StyleGAN of All Trades: Image Manipulation with Only Pretrained StyleGAN](). [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mchong6/SOAT/blob/main/infinity.ipynb)
 
 
 >**Abstract:**<br>
