@@ -639,7 +639,7 @@ class Generator(nn.Module):
     def blend_bbox(self, latent1, latent2, coord, model_type, num_blend=99):
         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
 
-        if mode_type == 'face':
+        if model_type == 'face':
             pose_align = True
             pose_num = 4
         else:
