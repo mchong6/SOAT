@@ -9,7 +9,7 @@ import numpy as np
 import math
 import scipy
 import scipy.ndimage
-
+import torchvision
 
 # Number of style channels per StyleGAN layer
 style2list_len = [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 
@@ -19,12 +19,22 @@ style2list_len = [512, 512, 512, 512, 512, 512, 512, 512, 512, 512,
 rgb_layer_idx = [1,4,7,10,13,16,19,22,25]
 
 google_drive_paths = {
-    "stylegan2-church-config-f.pt": "https://drive.google.com/uc?id=1ORsZHZEeFNEX9HtqRutt1jMgrf5Gpcat",
+    "church.pt": "https://drive.google.com/uc?id=1ORsZHZEeFNEX9HtqRutt1jMgrf5Gpcat",
+    "face.pt": "https://drive.google.com/uc?id=1dOBo4xWUwM7-BwHWZgp-kV1upaD6tHAh",
+    "landscape.pt": "https://drive.google.com/uc?id=1rN5EhwiY95BBNPvOezhX4SZ_tEOR0qe2",
+    "disney.pt": "https://drive.google.com/uc?id=1n2uQ5s2XdUBGIcZA9Uabz1mkjVvKWFeG",
+    "010000.pt": "https://drive.google.com/uc?id=1hOq8zx0wVS3zqdfASXhzFre7DPi7Sel_",
     "model_ir_se50.pt": "https://drive.google.com/uc?id=1KW7bjndL3QG3sxBbZxreGHigcCCpsDgn",
     "dlibshape_predictor_68_face_landmarks.dat": "https://drive.google.com/uc?id=11BDmNKS1zxSZxkgsEvQoKgFd8J264jKp",
     "e4e_ffhq_encode.pt": "https://drive.google.com/uc?id=1cUv_reLE6k3604or78EranS7XzuVMWeO"
 }
 
+@torch.no_grad()
+def load_model(generator, model_file_path):
+    ensure_checkpoint_exists(model_file_path)
+    ckpt = torch.load(model_file_path, map_location=lambda storage, loc: storage)
+    generator.load_state_dict(ckpt["g_ema"], strict=False)
+    return generator.mean_latent(50000)
 
 def ensure_checkpoint_exists(model_weights_filename):
     if not os.path.isfile(model_weights_filename) and (
@@ -330,3 +340,15 @@ def align_face(filepath, output_size=512):
     # Return aligned image.
     return img
 
+def normalize(x):
+    return (x+1)/2
+
+def tensor2bbox_im(x):
+    return np.array(torchvision.transforms.functional.to_pil_image(normalize(x[0])))
+
+def prepare_bbox(boxes):
+    output = []
+    for i in range(len(boxes)):
+        y1,x1,y2,x2 = boxes[i][0]
+        output.append((256*np.array([x1,y1, x2-x1, y2-y1])).astype(np.uint8))
+    return output

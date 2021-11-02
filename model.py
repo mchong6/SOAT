@@ -538,101 +538,6 @@ class Generator(nn.Module):
             
         return output
 
-    def blend_bbox(self, latent1, latent2, coord):
-        def get_bbox_from_mask(img):
-            img = img[0,0]
-            a = torch.where(img != 0)
-            
-            y = torch.min(a[0])
-            x = torch.min(a[1])
-            h =  torch.max(a[0]) - y
-            w = torch.max(a[1]) - x
-            
-            return (y,x,h,w)
-
-        noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
-
-        coord = coord.astype('uint8')
-        x1, y1, w1, h1 = coord[0]
-        x2, y2, w2, h2 = coord[1]
-        h = max(h1, h2)
-        w = max(w1, w2)
-
-        mask1 = torch.zeros([1,1,256,256]).cuda()
-        mask1[..., y1:y1+h, x1:x1+w] = 1
-        mask1 = k.gaussian_blur2d(mask1, (21,21), sigma=(10,10))
-
-        mask2 = torch.zeros([1,1,256,256]).cuda()
-        mask2[..., y2:y2+h, x2:x2+w] = 1
-        mask2 = k.gaussian_blur2d(mask2, (21,21), sigma=(10,10))
-
-        out = self.input(latent1[0])
-        out1, _ = self.conv1(out, latent1[0], noise=noise[0])
-        out2, _ = self.conv1(out, latent2[0], noise=noise[0])
-        alpha1 = F.interpolate(mask1, size=out1.size()[2:], mode='bilinear')
-        alpha2 = F.interpolate(mask2, size=out1.size()[2:], mode='bilinear')
-        bbox1 = get_bbox_from_mask(alpha1)
-        bbox2 = get_bbox_from_mask(alpha2)
-        h = max(bbox1[2], bbox2[2])
-        w = max(bbox1[3], bbox2[3])
-        out = (1-alpha1)*out1
-        out[..., bbox1[0]:bbox1[0]+h, bbox1[1]:bbox1[1]+w] += (alpha2*out2)[..., bbox2[0]:bbox2[0]+h, bbox2[1]:bbox2[1]+w]
-
-
-        skip1 = self.to_rgb1(out, latent1[1])
-        skip2 = self.to_rgb1(out, latent2[1])
-        alpha1 = F.interpolate(mask1, size=skip1.size()[2:], mode='bilinear')
-        alpha2 = F.interpolate(mask2, size=skip1.size()[2:], mode='bilinear')
-        bbox1 = get_bbox_from_mask(alpha1)
-        bbox2 = get_bbox_from_mask(alpha2)
-        h = max(bbox1[2], bbox2[2])
-        w = max(bbox1[3], bbox2[3])
-        skip = (1-alpha1)*skip1
-        skip[..., bbox1[0]:bbox1[0]+h, bbox1[1]:bbox1[1]+w] += (alpha2*skip2)[..., bbox2[0]:bbox2[0]+h, bbox2[1]:bbox2[1]+w]
-
-        i = 2
-        for conv1, conv2, noise1, noise2, to_rgb in zip(
-            self.convs[::2], self.convs[1::2], noise[1::2], noise[2::2], self.to_rgbs
-        ):
-
-            out1, _ = conv1(out, latent1[i], noise=noise1)
-            out2, _ = conv1(out, latent2[i], noise=noise1)
-            alpha1 = F.interpolate(mask1, size=out1.size()[2:], mode='bilinear')
-            alpha2 = F.interpolate(mask2, size=out1.size()[2:], mode='bilinear')
-            bbox1 = get_bbox_from_mask(alpha1)
-            bbox2 = get_bbox_from_mask(alpha2)
-            h = max(bbox1[2], bbox2[2])
-            w = max(bbox1[3], bbox2[3])
-            out = (1-alpha1)*out1
-            out[..., bbox1[0]:bbox1[0]+h, bbox1[1]:bbox1[1]+w] += (alpha2*out2)[..., bbox2[0]:bbox2[0]+h, bbox2[1]:bbox2[1]+w]
-
-            out1, _ = conv2(out, latent1[i+1], noise=noise2)
-            out2, _ = conv2(out, latent2[i+1], noise=noise2)
-            alpha1 = F.interpolate(mask1, size=out1.size()[2:], mode='bilinear')
-            alpha2 = F.interpolate(mask2, size=out1.size()[2:], mode='bilinear')
-            bbox1 = get_bbox_from_mask(alpha1)
-            bbox2 = get_bbox_from_mask(alpha2)
-            h = max(bbox1[2], bbox2[2])
-            w = max(bbox1[3], bbox2[3])
-            out = (1-alpha1)*out1
-            out[..., bbox1[0]:bbox1[0]+h, bbox1[1]:bbox1[1]+w] += (alpha2*out2)[..., bbox2[0]:bbox2[0]+h, bbox2[1]:bbox2[1]+w]
-
-            skip1 = to_rgb(out, latent1[i+2], skip)
-            skip2 = to_rgb(out, latent2[i+2], skip)
-            alpha1 = F.interpolate(mask1, size=skip1.size()[2:], mode='bilinear')
-            alpha2 = F.interpolate(mask2, size=skip1.size()[2:], mode='bilinear')
-            bbox1 = get_bbox_from_mask(alpha1)
-            bbox2 = get_bbox_from_mask(alpha2)
-            h = max(bbox1[2], bbox2[2])
-            w = max(bbox1[3], bbox2[3])
-            skip = (1-alpha1)*skip1
-            skip[..., bbox1[0]:bbox1[0]+h, bbox1[1]:bbox1[1]+w] += (alpha2*skip2)[..., bbox2[0]:bbox2[0]+h, bbox2[1]:bbox2[1]+w]
-
-            i += 3
-
-        image = skip.clamp(-1,1)
-        return image
-
     def patch_swap(self, latent1, latent2, coord, swap=True):
         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
 
@@ -731,10 +636,15 @@ class Generator(nn.Module):
 
 
 
-    def blend_mask(self, latent1, latent2, coord, num_blend=99, pose_align=False, pose_num=4):
+    def blend_bbox(self, latent1, latent2, coord, model_type, num_blend=99):
         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
 
-        coord = coord.astype('uint8')
+        if mode_type == 'face':
+            pose_align = True
+            pose_num = 4
+        else:
+            pose_align = False
+
         x, y, w, h = coord[0]
 
         mask = torch.zeros([1,1,256,256]).cuda()
