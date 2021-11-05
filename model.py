@@ -104,19 +104,17 @@ class Blur(nn.Module):
 
 class EqualConv2d(nn.Module):
     def __init__(
-        self, in_channel, out_channel, kernel_size, groups=1, stride=1, padding=0, bias=True, lr_mul=1
+        self, in_channel, out_channel, kernel_size, stride=1, padding=0, bias=True
     ):
         super().__init__()
 
         self.weight = nn.Parameter(
-            torch.randn(out_channel, in_channel//groups, kernel_size, kernel_size).div_(lr_mul)
+            torch.randn(out_channel, in_channel, kernel_size, kernel_size)
         )
-        self.scale = lr_mul / math.sqrt((in_channel//groups) * kernel_size ** 2)
+        self.scale = 1 / math.sqrt(in_channel * kernel_size ** 2)
 
         self.stride = stride
         self.padding = padding
-        self.groups = groups
-        self.lr_mul =lr_mul
 
         if bias:
             self.bias = nn.Parameter(torch.zeros(out_channel))
@@ -125,14 +123,12 @@ class EqualConv2d(nn.Module):
             self.bias = None
 
     def forward(self, input):
-        bias = self.bias * self.lr_mul if self.bias is not None else None
         out = F.conv2d(
             input,
             self.weight * self.scale,
             bias=self.bias,
             stride=self.stride,
             padding=self.padding,
-            groups=self.groups
         )
 
         return out
@@ -936,12 +932,10 @@ class ConvLayer(nn.Sequential):
         in_channel,
         out_channel,
         kernel_size,
-        groups=1,
         downsample=False,
         blur_kernel=[1, 3, 3, 1],
         bias=True,
         activate=True,
-        lr_mul=1,
     ):
         layers = []
 
@@ -965,17 +959,15 @@ class ConvLayer(nn.Sequential):
                 in_channel,
                 out_channel,
                 kernel_size,
-                groups=groups,
                 padding=self.padding,
                 stride=stride,
                 bias=bias and not activate,
-                lr_mul=lr_mul,
             )
         )
 
         if activate:
             if bias:
-                layers.append(FusedLeakyReLU(out_channel, lr_mul=lr_mul))
+                layers.append(FusedLeakyReLU(out_channel))
 
             else:
                 layers.append(ScaledLeakyReLU(0.2))
@@ -1065,59 +1057,3 @@ class Discriminator(nn.Module):
         out = self.final_linear(out)
 
         return out
-
-class VGGExtractor(torch.nn.Module):
-    def __init__(self, resize=False):
-        super(VGGExtractor, self).__init__()
-        vgg16 = torchvision.models.vgg16(pretrained=True).eval()
-        blocks = vgg16.features[:23]
-        for p in blocks:
-            p.requires_grad = False
-        self.blocks = blocks
-        self.transform = torch.nn.functional.interpolate
-        self.mean = torch.nn.Parameter(torch.tensor([0.485, 0.456, 0.406]).view(1,3,1,1))
-        self.std = torch.nn.Parameter(torch.tensor([0.229, 0.224, 0.225]).view(1,3,1,1))
-        self.resize = resize
-
-    def forward(self, input):
-        if input.shape[1] != 3:
-            input = input.repeat(1, 3, 1, 1)
-        input = (input + 1) / 2
-        input = (input-self.mean) / self.std
-        if self.resize:
-            input = self.transform(input, mode='bilinear', size=(224, 224), align_corners=False)
-        return self.blocks(input)
-
-class Encoder(nn.Module):
-    def __init__(self, size, groups, channel_multiplier=1, blur_kernel=[1, 3, 3, 1]):
-        '''
-        [16]: [14,15,16,17,18,19]
-        [8]: [8,9,10,11,12,13]
-        [4]: [0,1,2,3,4,5,6,7]
-        '''
-        super().__init__()
-        in_channel = 3
-        out_channel = 64
-
-        convs = nn.ModuleList()
-        for i in range(6):
-            convs.append(ResBlock(in_channel, out_channel, blur_kernel))
-            in_channel = out_channel
-            out_channel = min(1024, in_channel*2)
-
-        self.fc_high = nn.Sequential(nn.AdaptiveAvgPool2d(4),
-                                    nn.Flatten(),
-                                    EqualLinear(512*4*4, 4*512+3*256+2*128))
-        self.fc_mid = nn.Sequential(nn.AdaptiveAvgPool2d(4),
-                                    nn.Flatten(),
-                                    EqualLinear(1024*4*4, 512*6))
-        self.fc_low = nn.Sequential(nn.AdaptiveAvgPool2d(4),
-                                    nn.Flatten(),
-                                    EqualLinear(1024*4*4, 512*5))
-
-    def forward(self, input):
-        shared = self.convs(input)
-        local = self.local_fc(shared)
-        glob = self.global_fc(shared)
-        return local.view(local.size(0), -1), glob
-
