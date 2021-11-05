@@ -11,6 +11,13 @@ Recently, StyleGAN has enabled various image manipulation and editing tasks than
 ## How to use
 Everything to get started is in the [colab notebook](https://colab.research.google.com/github/mchong6/SOAT/blob/main/infinity.ipynb).
 
+## Toonification
+For toonification, you can train a new model yourself by running
+```bash
+python train.py
+```
+For disney toonification, we use the disney dataset [here](https://github.com/justinpinkney/toonify). Feel free to experiment with different datasets.
+
 ## Citation
 If you use this code or ideas from our paper, please cite our paper:
 ```
