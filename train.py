@@ -14,6 +14,7 @@ import torch.distributed as dist
 from torchvision import transforms, utils
 from tqdm import tqdm
 from copy import deepcopy
+from util import ensure_checkpoint_exists
 
 try:
     import wandb
@@ -358,8 +359,7 @@ if __name__ == "__main__":
     parser.add_argument("--d_reg_every", type=int, default=16)
     parser.add_argument("--g_reg_every", type=int, default=4)
     parser.add_argument("--mixing", type=float, default=0.9)
-    #parser.add_argument("--ckpt", type=str, default='face.pt')
-    parser.add_argument("--ckpt", type=str, default='/shared/rsaas/mchong6/stylegan/550000.pt')
+    parser.add_argument("--ckpt", type=str, default='face.pt')
     #parser.add_argument("--ckpt", type=str, default='/home/mchong6/stylegan2-pytorch/stylegan2-ffhq-config-f.pt')
     parser.add_argument("--lr", type=float, default=0.002)
     parser.add_argument("--channel_multiplier", type=int, default=2)
@@ -410,7 +410,7 @@ if __name__ == "__main__":
 
     if args.ckpt is not None:
         print("load model:", args.ckpt)
-
+        ensure_checkpoint_exists(args.ckpt)
         ckpt = torch.load(args.ckpt, map_location=lambda storage, loc: storage)
 
         try:
