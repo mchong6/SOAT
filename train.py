@@ -465,7 +465,7 @@ if __name__ == "__main__":
     os.makedirs(f'checkpoint_{args.dataset}', exist_ok=True)
     os.makedirs(f'sample_{args.dataset}', exist_ok=True)
 
-    dataset = ImageFolder('../UI2I_via_StyleGAN2/cartoon', transform)
+    dataset = ImageFolder('./cartoon', transform)
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch,
