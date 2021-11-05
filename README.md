@@ -1,7 +1,7 @@
-# StyleGAN of All Trades: Image Manipulation withOnly Pretrained StyleGAN
+# StyleGAN of All Trades: Image Manipulation with Only Pretrained StyleGAN
 ![](teaser.jpg)
 
-This is the PyTorch implementation of [StyleGAN of All Trades: Image Manipulation withOnly Pretrained StyleGAN](). [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mchong6/SOAT/blob/main/infinity.ipynb)
+This is the PyTorch implementation of [StyleGAN of All Trades: Image Manipulation with Only Pretrained StyleGAN](https://arxiv.org/abs/2111.01619). [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/mchong6/SOAT/blob/main/infinity.ipynb)
 
 
 >**Abstract:**<br>
@@ -10,6 +10,13 @@ Recently, StyleGAN has enabled various image manipulation and editing tasks than
 
 ## How to use
 Everything to get started is in the [colab notebook](https://colab.research.google.com/github/mchong6/SOAT/blob/main/infinity.ipynb).
+
+## Toonification
+For toonification, you can train a new model yourself by running
+```bash
+python train.py
+```
+For disney toonification, we use the disney dataset [here](https://github.com/justinpinkney/toonify). Feel free to experiment with different datasets.
 
 ## Citation
 If you use this code or ideas from our paper, please cite our paper:
