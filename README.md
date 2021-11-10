@@ -21,6 +21,12 @@ For disney toonification, we use the disney dataset [here](https://github.com/ju
 ## Citation
 If you use this code or ideas from our paper, please cite our paper:
 ```
+@article{chong2021stylegan,
+  title={StyleGAN of All Trades: Image Manipulation with Only Pretrained StyleGAN},
+  author={Chong, Min Jin and Lee, Hsin-Ying and Forsyth, David},
+  journal={arXiv preprint arXiv:2111.01619},
+  year={2021}
+}
 ```
 
 ## Acknowledgments
