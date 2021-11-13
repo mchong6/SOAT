@@ -509,8 +509,9 @@ class Generator(nn.Module):
         return latent
 
     def get_w(self, input):
+        device = self.input.input.device
         latent = self.style(input)
-        latent = fused_leaky_relu(latent, torch.zeros_like(latent).to(input.device), 5.)
+        latent = fused_leaky_relu(latent, torch.zeros_like(latent).to(device), 5.)
         return latent
 
     def get_latent(self, input, is_latent=False, truncation=1, mean_latent=None):
@@ -644,7 +645,7 @@ class Generator(nn.Module):
 
         x, y, w, h = coord[0]
 
-        device = latent1.device
+        device = self.input.input.device
         mask = torch.zeros([1,1,256,256]).to(device)
         mask[..., y:y+h, x:x+w] = 1
         k_h = h//2
@@ -702,7 +703,7 @@ class Generator(nn.Module):
     
     def blend(self, latent1, latent2, mode):
         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
-        device = latent1.device
+        device = self.input.input.device
 
         assert mode in ('vertical', 'horizontal')
         if mode == 'vertical':
@@ -771,7 +772,7 @@ class Generator(nn.Module):
     
     def merge_extension(self, latent1, latent2):
         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
-        device = latent1.device
+        device = self.input.input.device
         
         out = self.input(latent1[0])
         out1, _ = self.conv1(out, latent1[0], noise=noise[0])
@@ -829,7 +830,7 @@ class Generator(nn.Module):
 
     def merge(self, latent1, latent2):
         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
-        device = latent1.device
+        device = self.input.input.device
         
         out = self.input(latent1[0])
         out1, _ = self.conv1(out, latent1[0], noise=noise[0])
