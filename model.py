@@ -299,6 +299,7 @@ class NoiseInjection(nn.Module):
         self.weight = nn.Parameter(torch.zeros(1))
 
     def forward(self, image, noise=None):
+        device = image.device
         if noise is None:
             batch, _, height, width = image.shape
             noise = image.new_empty(batch, 1, height, width).normal_()
@@ -312,7 +313,7 @@ class NoiseInjection(nn.Module):
             gen = torch.Generator()
             gen = gen.manual_seed(width)
             #noise = torch.randn(*image.shape, generator=gen).cuda()
-            out_noise = torch.zeros([batch,1,height,width]).normal_(generator=gen).cuda()
+            out_noise = torch.zeros([batch,1,height,width]).normal_(generator=gen).to(device)
             out_noise[..., :old_width] = noise
             out_noise[..., -old_width:] = noise
             #noise = image.new_empty(batch, 1, height, width).normal_(generator=gen)
@@ -509,7 +510,7 @@ class Generator(nn.Module):
 
     def get_w(self, input):
         latent = self.style(input)
-        latent = fused_leaky_relu(latent, torch.zeros_like(latent).cuda(), 5.)
+        latent = fused_leaky_relu(latent, torch.zeros_like(latent).to(input.device), 5.)
         return latent
 
     def get_latent(self, input, is_latent=False, truncation=1, mean_latent=None):
@@ -643,7 +644,8 @@ class Generator(nn.Module):
 
         x, y, w, h = coord[0]
 
-        mask = torch.zeros([1,1,256,256]).cuda()
+        device = latent1.device
+        mask = torch.zeros([1,1,256,256]).to(device)
         mask[..., y:y+h, x:x+w] = 1
         k_h = h//2
         k_h += k_h%2+1
@@ -700,6 +702,7 @@ class Generator(nn.Module):
     
     def blend(self, latent1, latent2, mode):
         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
+        device = latent1.device
 
         assert mode in ('vertical', 'horizontal')
         if mode == 'vertical':
@@ -715,7 +718,7 @@ class Generator(nn.Module):
         pad = out1.size(2)//4
         alpha[-pad:] = 1
         alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-        alpha = alpha.view(*view_size).expand_as(out1).cuda()
+        alpha = alpha.view(*view_size).expand_as(out1).to(device)
         out = (1-alpha)*out1 + alpha*out2
 
         skip1 = self.to_rgb1(out, latent1[1])
@@ -724,7 +727,7 @@ class Generator(nn.Module):
         pad = skip1.size(2)//4
         alpha[-pad:] = 1
         alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-        alpha = alpha.view(*view_size).expand_as(skip1).cuda()
+        alpha = alpha.view(*view_size).expand_as(skip1).to(device)
         skip = (1-alpha)*skip1 + alpha*skip2
 
 
@@ -739,7 +742,7 @@ class Generator(nn.Module):
             pad = out1.size(2)//4
             alpha[-pad:] = 1
             alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-            alpha = alpha.view(*view_size).expand_as(out1).cuda()
+            alpha = alpha.view(*view_size).expand_as(out1).to(device)
             out = (1-alpha)*out1 + alpha*out2
 
             out1, _ = conv2(out, latent1[i+1], noise=noise2)
@@ -748,7 +751,7 @@ class Generator(nn.Module):
             pad = out1.size(2)//4
             alpha[-pad:] = 1
             alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-            alpha = alpha.view(*view_size).expand_as(out1).cuda()
+            alpha = alpha.view(*view_size).expand_as(out1).to(device)
             out = (1-alpha)*out1 + alpha*out2
 
             skip1 = to_rgb(out, latent1[i+2], skip)
@@ -757,7 +760,7 @@ class Generator(nn.Module):
             pad = skip1.size(2)//4
             alpha[-pad:] = 1
             alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-            alpha = alpha.view(*view_size).expand_as(skip1).cuda()
+            alpha = alpha.view(*view_size).expand_as(skip1).to(device)
             skip = (1-alpha)*skip1 + alpha*skip2
 
             i += 3
@@ -768,6 +771,7 @@ class Generator(nn.Module):
     
     def merge_extension(self, latent1, latent2):
         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
+        device = latent1.device
         
         out = self.input(latent1[0])
         out1, _ = self.conv1(out, latent1[0], noise=noise[0])
@@ -781,7 +785,7 @@ class Generator(nn.Module):
         pad = skip1.size(3)//4
         alpha[-pad:] = 1
         alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-        alpha = alpha.view(1,1,1,-1).expand_as(skip1).cuda()
+        alpha = alpha.view(1,1,1,-1).expand_as(skip1).to(device)
         skip = (1-alpha)*skip1 + alpha*skip2
 
 
@@ -797,7 +801,7 @@ class Generator(nn.Module):
             pad = out1.size(3)//4
             alpha[-pad:] = 1
             alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-            alpha = alpha.view(1,1,1,-1).expand_as(out1).cuda()
+            alpha = alpha.view(1,1,1,-1).expand_as(out1).to(device)
             out = (1-alpha)*out1 + alpha*out2
 
             out1, _ = conv2(out, latent1[i+1], noise=noise2)
@@ -806,7 +810,7 @@ class Generator(nn.Module):
             pad = out1.size(3)//4
             alpha[-pad:] = 1
             alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-            alpha = alpha.view(1,1,1,-1).expand_as(out1).cuda()
+            alpha = alpha.view(1,1,1,-1).expand_as(out1).to(device)
             out = (1-alpha)*out1 + alpha*out2
 
             skip1 = to_rgb(out, latent1[i+2], skip)
@@ -815,7 +819,7 @@ class Generator(nn.Module):
             pad = skip1.size(3)//4
             alpha[-pad:] = 1
             alpha[pad:-pad] = torch.linspace(0,1,alpha.size(0)-2*pad)
-            alpha = alpha.view(1,1,1,-1).expand_as(skip1).cuda()
+            alpha = alpha.view(1,1,1,-1).expand_as(skip1).to(device)
             skip = (1-alpha)*skip1 + alpha*skip2
 
             i += 3
@@ -825,6 +829,7 @@ class Generator(nn.Module):
 
     def merge(self, latent1, latent2):
         noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
+        device = latent1.device
         
         out = self.input(latent1[0])
         out1, _ = self.conv1(out, latent1[0], noise=noise[0])
@@ -833,7 +838,7 @@ class Generator(nn.Module):
 
         skip1 = self.to_rgb1(out, latent1[1])
         skip2 = self.to_rgb1(out, latent2[1])
-        alpha = torch.linspace(0,1, skip1.size(3)).view(1,1,1,-1).expand_as(skip1).cuda()
+        alpha = torch.linspace(0,1, skip1.size(3)).view(1,1,1,-1).expand_as(skip1).to(device)
         skip = (1-alpha)*skip1 + alpha*skip2
 
 
@@ -845,17 +850,17 @@ class Generator(nn.Module):
 
             out1, _ = conv1(out, latent1[i], noise=noise1)
             out2, _ = conv1(out, latent2[i], noise=noise1)
-            alpha = torch.linspace(0,1, out1.size(3)).view(1,1,1,-1).expand_as(out1).cuda()
+            alpha = torch.linspace(0,1, out1.size(3)).view(1,1,1,-1).expand_as(out1).to(device)
             out = (1-alpha)*out1 + alpha*out2
 
             out1, _ = conv2(out, latent1[i+1], noise=noise2)
             out2, _ = conv2(out, latent2[i+1], noise=noise2)
-            alpha = torch.linspace(0,1, out1.size(3)).view(1,1,1,-1).expand_as(out1).cuda()
+            alpha = torch.linspace(0,1, out1.size(3)).view(1,1,1,-1).expand_as(out1).to(device)
             out = (1-alpha)*out1 + alpha*out2
 
             skip1 = to_rgb(out, latent1[i+2], skip)
             skip2 = to_rgb(out, latent2[i+2], skip)
-            alpha = torch.linspace(0,1, skip1.size(3)).view(1,1,1,-1).expand_as(skip1).cuda()
+            alpha = torch.linspace(0,1, skip1.size(3)).view(1,1,1,-1).expand_as(skip1).to(device)
             skip = (1-alpha)*skip1 + alpha*skip2
 
             i += 3
