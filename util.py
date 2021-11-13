@@ -13,6 +13,10 @@ import torchvision
 # Number of style channels per StyleGAN layer
 style2list_len = [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 
                   512, 512, 512, 512, 512, 256, 256, 256, 128, 128]
+# for 1024 x 1024
+#style2list_len = [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 
+#                  512, 512, 512, 512, 512, 256, 256, 256, 128, 128, 
+#                  128, 64, 64, 64, 32, 32]
 
 # Layer indices of ToRGB modules
 rgb_layer_idx = [1,4,7,10,13,16,19,22,25]

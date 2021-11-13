@@ -18,6 +18,18 @@ python train.py
 ```
 For disney toonification, we use the disney dataset [here](https://github.com/justinpinkney/toonify). Feel free to experiment with different datasets.
 
+## GAN inversion
+To perform GAN inversion with gaussian regularization in W+ space,
+```bash
+python projector.py xxx.jpg
+```
+the code will be saved in ./inversion_codes/xxx.pt which you can load by
+```python
+source = load_source(['xxx'], generator, device)
+source_im, _ = generator(source)
+
+```
+
 ## Citation
 If you use this code or ideas from our paper, please cite our paper:
 ```
